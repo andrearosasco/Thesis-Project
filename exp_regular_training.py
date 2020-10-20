@@ -1,4 +1,3 @@
-from __future__ import print_function
 import torch.nn as nn
 import torch.optim as optim
 import time
@@ -6,29 +5,30 @@ import torchvision.transforms as transforms
 import torch
 import wandb
 from tqdm import tqdm
-import pandas as pd
 # user-defined modules
-from configs.config3 import conf
+from configs.config1 import conf
 import model
-from dataset.SplitMNIST import SplitMNIST
-from utils import utils
-from utils.Buffer import Buffer
+from contflame.data.datasets import SplitMNIST
+from contflame.data.utils import Buffer, MultiLoader
 from valid import valid
-import os
-import copy
 
-os.environ['CUDA_VISIBLE_DEVICES']='2'
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+
 # Check config
 if __file__.split('/')[-1] != conf['exp'] + '.py':
-    print('Warning: conf[exp] doesn\'t match the executed file name')
+    print('Warning: conf[exp] doesn\'t match the file name')
 # WandB
 wandb.init(project="meta-cl")
 wandb.config.update(conf)
 # Model
 net = getattr(model, conf['model']).Model()
-net.apply(utils.init_weights)
 net.to('cuda')
 net.train()
+net.apply(init_weights)
+wandb.watch(net, log='all')
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=conf['lr'])
@@ -40,17 +40,8 @@ transform = transforms.Compose(
      lambda x: torch.FloatTensor(x),
      lambda x: x.unsqueeze(0)
      ])
-memories = []
-validsets = []
-for t in range(5):
-    ds = Buffer(SplitMNIST(type='train', valid=conf['valid'], transform=transform, tasks=[t]), conf['buffer'])
-    ds.add(ds, 100)
-    memories.append(copy.copy(ds))
 
-trainset = memories[0]
-for m in memories[1:]:
-    trainset.add(m, 1)
-
+trainset = SplitMNIST(type='train', valid=conf['valid'], transform=transform)
 validset = SplitMNIST(type='valid', valid=conf['valid'], transform=transform)
 
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf['mb'], shuffle=True, pin_memory=True)
@@ -76,11 +67,11 @@ for epoch in tqdm(range(conf['epochs'])):  # loop over the dataset multiple time
         # print statistics
         running_loss += loss.item()
 
-        if i % int(len(trainloader)*0.05) == int(len(trainloader)*0.05) - 1 or i == 0:
-            running_loss = running_loss / len(trainloader)
-            valid_acc = valid(net, validset)
-            wandb.log({'Valid accuracy ': valid_acc})
+
+        running_loss = running_loss / len(trainloader)
+        valid_loss = valid(net, validset)
+        wandb.log({'Train loss': running_loss, 'Valid accuracy': valid_loss})
 
     # print((time.time() - start))
 
-print('Finished Training ' + str(t+1))
+print('Finished Training')

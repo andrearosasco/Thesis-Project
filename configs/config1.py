@@ -1,5 +1,5 @@
 conf = {
-    'exp': 'exp1',
+    'exp': 'exp_regular_training',
     'model': 'cnn1',
     'epochs': 1,
     'mb': 256,

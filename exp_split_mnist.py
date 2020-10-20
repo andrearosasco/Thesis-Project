@@ -10,13 +10,17 @@ import pandas as pd
 # user-defined modules
 from configs.config2 import conf
 import model
-from dataset.SplitMNIST import SplitMNIST
-from utils import utils
-from utils.Buffer import Buffer
+from contflame.data.datasets import SplitMNIST
+from contflame.data.utils import Buffer, MultiLoader
 from valid import valid
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES']='2'
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+
+os.environ['CUDA_VISIBLE_DEVICES']='1'
 # Check config
 if __file__.split('/')[-1] != conf['exp'] + '.py':
     print('Warning: conf[exp] doesn\'t match the executed file name')
@@ -25,9 +29,10 @@ wandb.init(project="meta-cl")
 wandb.config.update(conf)
 # Model
 net = getattr(model, conf['model']).Model()
-net.apply(utils.init_weights)
+net.apply(init_weights)
 net.to('cuda')
 net.train()
+wandb.watch(net, log='all')
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=conf['lr'])
@@ -35,25 +40,26 @@ optimizer = optim.Adam(net.parameters(), lr=conf['lr'])
 # Dataset
 transform = transforms.Compose(
     [
-     lambda x: x.reshape((28, 28)),
-     lambda x: torch.FloatTensor(x),
-     lambda x: x.unsqueeze(0)
+        lambda x: torch.FloatTensor(x),
+        lambda x: x.reshape((28, 28)),
+        lambda x: x.unsqueeze(0)
      ])
 memories = []
 validsets = []
-for t in conf['tasks']:
 
-    trainset = SplitMNIST(type='train', valid=conf['valid'], transform=transform, tasks=[t])
-    validsets.append(SplitMNIST(type='valid', valid=conf['valid'], transform=transform, tasks=[t]))
+tasks = conf['tasks']
+for t in range(len(tasks)):
+    trainset = SplitMNIST(dset='train', valid=conf['valid'], transform=transform, classes=tasks[t])
+    validsets.append(SplitMNIST(dset='valid', valid=conf['valid'], transform=transform, classes=tasks[t]))
 
-    new_mem = Buffer(trainset, conf['buffer'])
 
-    l = len(trainset)
-    for m in memories:
-        trainset.add(m, int(l / len(m)))
-    memories.insert(0, new_mem[:])
 
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf['mb'], shuffle=True, pin_memory=True)
+    # l = len(trainset)
+    # for m in memories:
+    #     trainset.add(m, int(l / len(m)))
+    memories.append(Buffer(trainset, conf['buffer']))
+
+    trainloader = MultiLoader([trainset] + memories, batch_size=conf['mb'])
 
     # Training
     for epoch in tqdm(range(conf['epochs'])):  # loop over the dataset multiple times

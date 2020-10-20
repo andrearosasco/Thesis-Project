@@ -10,7 +10,7 @@ def valid(model, dataset):
     correct = 0
     total = 0
     with torch.no_grad():
-        for data in validloader:
+        for i, data in enumerate(validloader):
             images, labels = data
             images = images.to('cuda')
             labels = labels.to('cuda')

@@ -5,8 +5,6 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
-        self.drop = nn.Dropout(0.5)
-
         self.conv1 = nn.Conv2d(1, 16, (3, 3), padding=1)
         self.conv1_bn = nn.BatchNorm2d(16)
 
@@ -23,10 +21,8 @@ class Model(nn.Module):
         self.conv5_bn = nn.BatchNorm2d(256)
 
         self.fc1 = nn.Linear(256 * 2 * 2, 2000)
-        self.fc1_bn = nn.BatchNorm1d(2000)
         self.fc2 = nn.Linear(2000, 2000)
-        self.fc2_bn = nn.BatchNorm1d(2000)
-        self.fc3 = nn.Linear(2000, 100)
+        self.fc3 = nn.Linear(2000, 10)
 
     def forward(self, x):
         # [3, 32, 32] -> [16, 32, 32]
@@ -42,9 +38,9 @@ class Model(nn.Module):
         # [128, 2, 2] -> [512]
         x = x.view(-1, 256 * 2 * 2)
         # 1024 -> 2000
-        x = F.relu(self.drop(self.fc1(x)))
+        x = F.relu(F.dropout(self.fc1(x), 0.5))
         # 2000 -> 2000
-        x = F.relu(self.drop(self.fc2(x)))
+        x = F.relu(F.dropout(self.fc2(x), 0.5))
         # 2000 -> 100
         x = self.fc3(x)
         return x

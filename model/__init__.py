@@ -1,1 +1,1 @@
-import cnn1
+from model import cnn1, mlp1
