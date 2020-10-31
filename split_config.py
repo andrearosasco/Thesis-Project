@@ -17,8 +17,7 @@ model_config = OrderedDict([
 ])
 
 optim_config = OrderedDict([
-    ('epochs', 80),
-    ('base_lr', 0.1),
+    ('base_lr', 0.01),
     ('weight_decay', 0.0005),
     ('momentum', 0.9),
     ('nesterov', True),
@@ -33,7 +32,6 @@ data_config = OrderedDict([
     ('num_workers', 4),
     ('train_transform', transforms.Compose(
         [
-
             lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -47,9 +45,13 @@ data_config = OrderedDict([
             transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
         ]))
 ])
-
+k = 2
+t = 5
 run_config = OrderedDict([
-    ('experiment', 'regular'),
+    ('experiment', 'split'),
+    ('epochs', 80),
+    ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
+    ('buffer_size', 100),
     ('seed', 1234),
     ('wandb', True),
 ])

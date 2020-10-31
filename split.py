@@ -106,6 +106,10 @@ def test(task_id, i, epoch, model, criterion, test_loader, run_config):
                    f'Test accuracy {task_id}-{i}': accuracy,
                    f'Epoch {task_id}': epoch})
 
+        wandb.log({f'Test loss {i}': loss_meter.avg,
+                   f'Test accuracy {i}': accuracy,
+                   f'Epoch': epoch * task_id * run_config['epochs']})
+
     return accuracy
 
 
@@ -147,30 +151,28 @@ def run(config):
         milestones=optim_config['milestones'],
         gamma=optim_config['lr_decay'])
 
-    # # Pretraining on CIFAR10
-    #
-    #
-    # pretrainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
-    #                              classes=list(range(10, 100)))
-    # pretrainloader = DataLoader(pretrainset, batch_size=data_config['batch_size'], shuffle=True,
-    #                             pin_memory=True, num_workers=data_config['num_workers'])
-    # prevalidset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'],
-    #                              classes=list(range(10, 100)))
-    # prevalidloader = DataLoader(prevalidset, batch_size=data_config['batch_size'], shuffle=False,
-    #                             pin_memory=True, num_workers=data_config['num_workers'])
-    #
-    # for epoch in tqdm(range(1, optim_config['epochs'] + 1)):
-    #     scheduler.step()
-    #
-    #     train(0, epoch, net, optimizer, criterion, pretrainloader, run_config)
-    #     test(0, 0, epoch, net, criterion, prevalidloader, run_config)
-    #
-    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-    #     optimizer,
-    #     milestones=optim_config['milestones'],
-    #     gamma=optim_config['lr_decay'])
-    #
-    # net.freeze()
+    # Pretraining on CIFAR100
+
+
+    pretrainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],)
+    pretrainloader = DataLoader(pretrainset, batch_size=data_config['batch_size'], shuffle=True,
+                                pin_memory=True, num_workers=data_config['num_workers'])
+    prevalidset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'],)
+    prevalidloader = DataLoader(prevalidset, batch_size=data_config['batch_size'], shuffle=False,
+                                pin_memory=True, num_workers=data_config['num_workers'])
+
+    for epoch in tqdm(range(1, run_config['epochs'] + 1)):
+        scheduler.step()
+
+        train(0, epoch, net, optimizer, criterion, pretrainloader, run_config)
+        test(0, 0, epoch, net, criterion, prevalidloader, run_config)
+
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer,
+        milestones=optim_config['milestones'],
+        gamma=optim_config['lr_decay'])
+
+    net.freeze()
 
     # Training
     memories = []
@@ -190,7 +192,7 @@ def run(config):
                                  classes=task),
                                 run_config['buffer_size'], transform=data_config['train_transform']))
 
-        for epoch in tqdm(range(1, optim_config['epochs'] + 1)):
+        for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             scheduler.step()
 
             train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)

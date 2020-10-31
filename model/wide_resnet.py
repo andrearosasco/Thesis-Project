@@ -186,3 +186,6 @@ class Model(nn.Module):
 
     def freeze(self):
         self.conv_freezed = True
+        self.fc1.apply(initialize_weights)
+        self.fc3.apply(initialize_weights)
+        self.fc4.apply(initialize_weights)
