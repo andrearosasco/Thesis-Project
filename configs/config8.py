@@ -52,7 +52,7 @@ t = 5
 run_config = OrderedDict([
     ('experiment', 'split'),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
-    ('buffer_size', 1000),
+    ('buffer_size', 100),
     ('seed', 1234),
     ('wandb', True),
 ])
