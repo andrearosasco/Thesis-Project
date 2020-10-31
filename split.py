@@ -169,8 +169,9 @@ def run(config):
     #     optimizer,
     #     milestones=optim_config['milestones'],
     #     gamma=optim_config['lr_decay'])
+    #
+    # net.freeze()
 
-    net.freeze()
     # Training
     memories = []
     validloaders = []
