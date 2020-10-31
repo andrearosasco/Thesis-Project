@@ -1,12 +1,10 @@
 from __future__ import print_function
 import torch.nn as nn
 import torch.optim as optim
-import time
 import torchvision.transforms as transforms
 import torch
 import wandb
 from tqdm import tqdm
-import pandas as pd
 # user-defined modules
 from configs.config2 import conf
 import model

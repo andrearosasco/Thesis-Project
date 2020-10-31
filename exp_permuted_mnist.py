@@ -58,18 +58,13 @@ for t in conf['tasks']:
     memories.append(Buffer(trainset, conf['buffer']))
 
     # Training
-    for epoch in range(conf['epochs']):  # loop over the dataset multiple times
+    for epoch in range(conf['epochs']):
         running_loss = 0.0
 
         for i, data in enumerate(trainloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
-            # zero the parameter gradients
             optimizer.zero_grad()
-
-            # forward + backward + optimize
             outputs = net(inputs.to('cuda'))
-
             loss = criterion(outputs, labels.to('cuda'))
             loss.backward()
             optimizer.step()
