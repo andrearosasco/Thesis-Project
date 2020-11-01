@@ -167,10 +167,10 @@ def run(config):
         train(0, epoch, net, optimizer, criterion, pretrainloader, run_config)
         test(0, 0, epoch, net, criterion, prevalidloader, run_config)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer,
-        milestones=optim_config['milestones'],
-        gamma=optim_config['lr_decay'])
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer,
+    #     milestones=optim_config['milestones'],
+    #     gamma=optim_config['lr_decay'])
 
     net.freeze()
 
@@ -193,7 +193,7 @@ def run(config):
                                 run_config['buffer_size'], transform=data_config['train_transform']))
 
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
-            scheduler.step()
+            # scheduler.step()
 
             train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)
             for i, vl in enumerate(validloaders, 1):
