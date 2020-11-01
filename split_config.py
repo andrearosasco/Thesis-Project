@@ -30,20 +30,6 @@ data_config = OrderedDict([
     ('batch_size', 128),
     ('valid', 0.2),
     ('num_workers', 4),
-    ('train_transform', transforms.Compose(
-        [
-            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
-        ])),
-    ('test_transform', transforms.Compose(
-        [
-            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
-            transforms.ToTensor(),
-            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
-        ]))
 ])
 k = 2
 t = 5
@@ -51,7 +37,7 @@ run_config = OrderedDict([
     ('experiment', 'split'),
     ('epochs', 80),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
-    ('buffer_size', 100),
+    ('buffer_size', 1),
     ('seed', 1234),
     ('wandb', True),
 ])

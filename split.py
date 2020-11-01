@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 import torch
 import wandb
+from PIL import Image
 from contflame.data.datasets import SplitCIFAR100, SplitCIFAR10
 from contflame.data.utils import MultiLoader, Buffer
 from torch import nn
@@ -154,13 +155,28 @@ def run(config):
         milestones=optim_config['milestones'],
         gamma=optim_config['lr_decay'])
 
+    train_transform = transforms.Compose(
+        [
+            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
+        ])
+
+    test_transform = transforms.Compose(
+        [
+            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
+            transforms.ToTensor(),
+            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
+        ])
     # Pretraining on CIFAR100
 
 
-    pretrainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],)
+    pretrainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=train_transform)
     pretrainloader = DataLoader(pretrainset, batch_size=data_config['batch_size'], shuffle=True,
                                 pin_memory=True, num_workers=data_config['num_workers'])
-    prevalidset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'],)
+    prevalidset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=test_transform)
     prevalidloader = DataLoader(prevalidset, batch_size=data_config['batch_size'], shuffle=False,
                                 pin_memory=True, num_workers=data_config['num_workers'])
 
@@ -204,18 +220,18 @@ def run(config):
     validloaders = []
     for task_id, task in enumerate(run_config['tasks'], 1):
         # Data
-        trainset = SplitCIFAR10(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
+        trainset = SplitCIFAR10(dset='train', valid=data_config['valid'], transform=train_transform,
                                  classes=task)
-        validset = SplitCIFAR10(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'],
+        validset = SplitCIFAR10(dset='valid', valid=data_config['valid'], transform=test_transform,
                                  classes=task)
 
         trainloader = MultiLoader([trainset] + memories, batch_size=data_config['batch_size'])
         validloaders.append(DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
                                        pin_memory=True, num_workers=data_config['num_workers']))
-
-        memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
-                                 classes=task),
-                                run_config['buffer_size'], transform=data_config['train_transform']))
+        for t in task:
+            memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
+                                     classes=[t]),
+                                    run_config['buffer_size'], transform=train_transform))
 
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             # scheduler.step()
