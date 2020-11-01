@@ -1,5 +1,8 @@
+import os
 import time
 import random
+from collections import OrderedDict
+
 import torch
 import wandb
 from contflame.data.datasets import SplitCIFAR100, SplitCIFAR10
@@ -108,7 +111,7 @@ def test(task_id, i, epoch, model, criterion, test_loader, run_config):
 
         wandb.log({f'Test loss {i}': loss_meter.avg,
                    f'Test accuracy {i}': accuracy,
-                   f'Epoch': epoch * task_id * run_config['epochs']})
+                   f'Epoch': epoch + task_id * run_config['epochs']})
 
     return accuracy
 
@@ -165,7 +168,29 @@ def run(config):
         scheduler.step()
 
         train(0, epoch, net, optimizer, criterion, pretrainloader, run_config)
-        test(0, 0, epoch, net, criterion, prevalidloader, run_config)
+        accuracy = test(0, 0, epoch, net, criterion, prevalidloader, run_config)
+
+    try:
+        state = OrderedDict([
+            ('config', config),
+            ('state_dict', net.state_dict()),
+            ('optimizer', optimizer.state_dict()),
+            ('epoch', epoch),
+            ('accuracy', accuracy),
+        ])
+        model_path = os.path.join('./', 'model_state.pth')
+        torch.save(state, model_path)
+    except Exception as e:
+        print('Couldn\'t save the model')
+        print(e)
+
+    optimizer = torch.optim.SGD(
+        net.parameters(),
+        lr=optim_config['base_lr'],
+        momentum=optim_config['momentum'],
+        weight_decay=optim_config['weight_decay'],
+        nesterov=optim_config['nesterov']
+    )
 
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer,
@@ -198,13 +223,3 @@ def run(config):
             train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)
             for i, vl in enumerate(validloaders, 1):
                 test(task_id, i, epoch, net, criterion, vl, run_config)
-
-        # state = OrderedDict([
-        #     ('config', config),
-        #     ('state_dict', model.state_dict()),
-        #     ('optimizer', optimizer.state_dict()),
-        #     ('epoch', epoch),
-        #     ('accuracy', accuracy),
-        # ])
-        # model_path = os.path.join(outdir, 'model_state.pth')
-        # torch.save(state, model_path)
