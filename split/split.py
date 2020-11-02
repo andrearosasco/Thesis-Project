@@ -137,6 +137,9 @@ def run(config):
 
     # Model
     net = getattr(model, model_config['arch']).Model(model_config)
+    if 'checkpoint' in run_config:
+        net.load_state_dict(torch.load(run_config['checkpoint'])['state_dict'])
+        net.freeze()
     net.cuda()
 
     if run_config['wandb']:
@@ -170,50 +173,7 @@ def run(config):
             transforms.ToTensor(),
             transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
         ])
-    # Pretraining on CIFAR100
 
-
-    pretrainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=train_transform)
-    pretrainloader = DataLoader(pretrainset, batch_size=data_config['batch_size'], shuffle=True,
-                                pin_memory=True, num_workers=data_config['num_workers'])
-    prevalidset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=test_transform)
-    prevalidloader = DataLoader(prevalidset, batch_size=data_config['batch_size'], shuffle=False,
-                                pin_memory=True, num_workers=data_config['num_workers'])
-
-    for epoch in tqdm(range(1, run_config['epochs'] + 1)):
-        scheduler.step()
-
-        train(0, epoch, net, optimizer, criterion, pretrainloader, run_config)
-        accuracy = test(0, 0, epoch, net, criterion, prevalidloader, run_config)
-
-    try:
-        state = OrderedDict([
-            ('config', config),
-            ('state_dict', net.state_dict()),
-            ('optimizer', optimizer.state_dict()),
-            ('epoch', epoch),
-            ('accuracy', accuracy),
-        ])
-        model_path = os.path.join('./', 'model_state.pth')
-        torch.save(state, model_path)
-    except Exception as e:
-        print('Couldn\'t save the model')
-        print(e)
-
-    optimizer = torch.optim.SGD(
-        net.parameters(),
-        lr=optim_config['base_lr'],
-        momentum=optim_config['momentum'],
-        weight_decay=optim_config['weight_decay'],
-        nesterov=optim_config['nesterov']
-    )
-
-    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-    #     optimizer,
-    #     milestones=optim_config['milestones'],
-    #     gamma=optim_config['lr_decay'])
-
-    net.freeze()
 
     # Training
     memories = []
@@ -228,11 +188,12 @@ def run(config):
         trainloader = MultiLoader([trainset] + memories, batch_size=data_config['batch_size'])
         validloaders.append(DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
                                        pin_memory=True, num_workers=data_config['num_workers']))
-        # for t in task:
-        #     memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
-        #                              classes=[t]),
-        #                             run_config['buffer_size'], transform=train_transform))
+        for t in task:
+            memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
+                                     classes=[t]),
+                                    run_config['buffer_size'], transform=train_transform))
 
+        print(len(trainloader))
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             # scheduler.step()
 

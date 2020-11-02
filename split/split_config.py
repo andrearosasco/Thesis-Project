@@ -35,11 +35,12 @@ k = 2
 t = 5
 run_config = OrderedDict([
     ('experiment', 'split'),
+    ('pretrained', 'model_state.ptc'),
     ('epochs', 80),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 1),
     ('seed', 1234),
-    ('wandb', True),
+    ('wandb', False),
 ])
 
 
