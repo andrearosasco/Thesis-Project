@@ -228,10 +228,10 @@ def run(config):
         trainloader = MultiLoader([trainset] + memories, batch_size=data_config['batch_size'])
         validloaders.append(DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
                                        pin_memory=True, num_workers=data_config['num_workers']))
-        for t in task:
-            memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
-                                     classes=[t]),
-                                    run_config['buffer_size'], transform=train_transform))
+        # for t in task:
+        #     memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
+        #                              classes=[t]),
+        #                             run_config['buffer_size'], transform=train_transform))
 
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             # scheduler.step()
