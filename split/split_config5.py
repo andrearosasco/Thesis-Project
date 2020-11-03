@@ -1,7 +1,7 @@
 import importlib
 import os
+import sys
 from collections import OrderedDict
-
 
 model_config = OrderedDict([
     ('arch', 'wide_resnet'),
@@ -14,12 +14,12 @@ model_config = OrderedDict([
 ])
 
 optim_config = OrderedDict([
-    ('base_lr', 0.1),
+    ('base_lr', 0.01),
     ('weight_decay', 0.0005),
     ('momentum', 0.9),
     ('nesterov', True),
-    ('milestones', [60, 70]),
-    ('lr_decay', 0.2),
+    ('milestones', []),
+    ('lr_decay', 0.0),
 ])
 
 data_config = OrderedDict([
@@ -28,12 +28,15 @@ data_config = OrderedDict([
     ('valid', 0.2),
     ('num_workers', 4),
 ])
-
+k = 2
+t = 5
 run_config = OrderedDict([
-    ('experiment', 'pretrain'),
-    ('wandb_name', 'new_pretrain'),
-    ('save', 'model_state.ptc'),
+    ('experiment', 'split'),
+    ('wandb_name', 'different_task_order'),
+    ('checkpoint', 'model_state.ptc'),
     ('epochs', 80),
+    ('tasks', [[8, 9], [0, 1], [6, 7], [4, 5], [2, 3]]),
+    ('buffer_size', 100),
     ('seed', 1234),
     ('wandb', True),
 ])

@@ -1,10 +1,7 @@
 import importlib
 import os
+import sys
 from collections import OrderedDict
-
-from PIL import Image
-from torchvision.transforms import transforms
-import numpy as np
 
 model_config = OrderedDict([
     ('arch', 'wide_resnet'),
@@ -21,8 +18,8 @@ optim_config = OrderedDict([
     ('weight_decay', 0.0005),
     ('momentum', 0.9),
     ('nesterov', True),
-    ('milestones', [60, 70]),
-    ('lr_decay', 0.2),
+    ('milestones', []),
+    ('lr_decay', 0.0),
 ])
 
 data_config = OrderedDict([
@@ -35,12 +32,13 @@ k = 2
 t = 5
 run_config = OrderedDict([
     ('experiment', 'split'),
-    ('pretrained', 'model_state.ptc'),
+    ('wandb_name', 'buffer100-new_pretrained'),
+    ('checkpoint', 'model_state.ptc'),
     ('epochs', 80),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
-    ('buffer_size', 1),
+    ('buffer_size', 100),
     ('seed', 1234),
-    ('wandb', False),
+    ('wandb', True),
 ])
 
 
@@ -52,7 +50,7 @@ config = OrderedDict([
 ])
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     experiment = importlib.import_module(config['run_config']['experiment'])
     experiment.run(config)

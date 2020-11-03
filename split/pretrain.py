@@ -120,7 +120,7 @@ def run(config):
     data_config = config['data_config']
 
     if run_config['wandb']:
-        wandb.init(project="meta-cl")
+        wandb.init(project="meta-cl", name=run_config['wandb_name'])
         wandb.config.update(config)
     # Reproducibility
     seed = config['run_config']['seed']
@@ -185,7 +185,7 @@ def run(config):
         train(epoch, net, optimizer, criterion, trainloader, run_config)
         accuracy = test(epoch, net, criterion, validloader, run_config)
 
-    if 'save' in run_config:
+    if run_config['save'] is not None:
         state = OrderedDict([
             ('config', config),
             ('state_dict', net.state_dict()),

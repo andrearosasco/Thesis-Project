@@ -124,7 +124,7 @@ def run(config):
     data_config = config['data_config']
 
     if run_config['wandb']:
-        wandb.init(project="meta-cl")
+        wandb.init(project="meta-cl", name=run_config['wandb_name'])
         wandb.config.update(config)
     # Reproducibility
     seed = config['run_config']['seed']
@@ -137,9 +137,10 @@ def run(config):
 
     # Model
     net = getattr(model, model_config['arch']).Model(model_config)
-    if 'checkpoint' in run_config:
+    if run_config['checkpoint'] is not None:
         net.load_state_dict(torch.load(run_config['checkpoint'])['state_dict'])
         net.freeze()
+        print('Using checkpoint')
     net.cuda()
 
     if run_config['wandb']:
