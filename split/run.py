@@ -1,11 +1,12 @@
+import os
 import subprocess
 
 
-configs = [f'split_config{x}.py' for x in range(6, 7)]
-configs.append('pretrain_config.py')
-configs.append('split_config7.py')
+configs = [f'split_config{x}.py' for x in range(1, 3)]
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     for c in configs:
+        print(f'Executing {c}')
         proc = subprocess.Popen(['python', c])
         proc.wait()

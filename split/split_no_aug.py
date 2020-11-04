@@ -1,3 +1,4 @@
+import os
 import time
 import random
 from collections import OrderedDict
@@ -5,13 +6,14 @@ from collections import OrderedDict
 import torch
 import wandb
 from PIL import Image
-from contflame.data.datasets import SplitCIFAR100
+from contflame.data.datasets import SplitCIFAR100, SplitCIFAR10
+from contflame.data.utils import MultiLoader, Buffer
 from torch import nn
 import numpy as np
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from torchvision import transforms
-from torchvision.datasets import CIFAR100
+from torchvision.datasets import CIFAR100, CIFAR10
+from torchvision.transforms import transforms
 from tqdm import tqdm
 
 import model
@@ -34,7 +36,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def train(epoch, model, optimizer, criterion, train_loader, run_config):
+def train(task_id, epoch, model, optimizer, criterion, train_loader, run_config):
     model.train()
 
     loss_meter = AverageMeter()
@@ -68,13 +70,12 @@ def train(epoch, model, optimizer, criterion, train_loader, run_config):
     elapsed = time.time() - start
 
     if run_config['wandb']:
-        wandb.log({'Train loss': loss_meter.avg,
-                   'Train accuracy': accuracy_meter.avg,
-                   'Train time': elapsed,
-                   'Epoch': epoch})
+        wandb.log({f'Train loss {task_id}': loss_meter.avg,
+                   f'Train accuracy {task_id}': accuracy_meter.avg,
+                   f'Epoch {task_id}': epoch})
 
 
-def test(epoch, model, criterion, test_loader, run_config):
+def test(task_id, i, epoch, model, criterion, test_loader, run_config):
 
     model.eval()
 
@@ -105,10 +106,13 @@ def test(epoch, model, criterion, test_loader, run_config):
     elapsed = time.time() - start
 
     if run_config['wandb']:
-        wandb.log({'Test loss': loss_meter.avg,
-                   'Test accuracy': accuracy,
-                   'Test time': elapsed,
-                   'Epoch': epoch})
+        wandb.log({f'Test loss {task_id}-{i}': loss_meter.avg,
+                   f'Test accuracy {task_id}-{i}': accuracy,
+                   f'Epoch {task_id}': epoch})
+
+        wandb.log({f'Test loss {i}': loss_meter.avg,
+                   f'Test accuracy {i}': accuracy,
+                   f'Epoch': epoch + task_id * run_config['epochs']})
 
     return accuracy
 
@@ -128,37 +132,15 @@ def run(config):
     np.random.seed(seed)
     random.seed(seed)
 
-    # Transforms
-    train_transform = transforms.Compose(
-        [
-            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
-        ])
-
-    test_transform = transforms.Compose(
-        [
-            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
-            transforms.ToTensor(),
-            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
-        ])
-
-    # Data
-    trainset = SplitCIFAR100(dset='train', valid=data_config['valid'], transform=train_transform, classes=list(range(10)))
-    validset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=test_transform, classes=list(range(10)))
-
-    trainloader = DataLoader(trainset, batch_size=data_config['batch_size'],
-                             shuffle=True, pin_memory=True, num_workers=data_config['num_workers'])
-    validloader = DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
-                             pin_memory=True, num_workers=data_config['num_workers'])
-
     # Loss
     criterion = nn.CrossEntropyLoss()
 
     # Model
     net = getattr(model, model_config['arch']).Model(model_config)
+    if run_config['checkpoint'] is not None:
+        net.load_state_dict(torch.load(run_config['checkpoint'])['state_dict'])
+        net.freeze()
+        print('Using checkpoint')
     net.cuda()
 
     if run_config['wandb']:
@@ -177,21 +159,45 @@ def run(config):
         milestones=optim_config['milestones'],
         gamma=optim_config['lr_decay'])
 
-    # Training
-
-    for epoch in tqdm(range(1, run_config['epochs'] + 1)):
-        scheduler.step()
-
-        train(epoch, net, optimizer, criterion, trainloader, run_config)
-        accuracy = test(epoch, net, criterion, validloader, run_config)
-
-    if run_config['save'] is not None:
-        state = OrderedDict([
-            ('config', config),
-            ('state_dict', net.state_dict()),
-            ('optimizer', optimizer.state_dict()),
-            ('epoch', epoch),
-            ('accuracy', accuracy),
+    train_transform = transforms.Compose(
+        [
+            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
+            # transforms.RandomCrop(32, padding=4),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
         ])
 
-        torch.save(state, run_config['save'])
+    test_transform = transforms.Compose(
+        [
+            lambda x: Image.fromarray(x.reshape((3, 32, 32)).transpose((1, 2, 0))),
+            transforms.ToTensor(),
+            transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0)
+        ])
+
+
+    # Training
+    memories = []
+    validloaders = []
+    for task_id, task in enumerate(run_config['tasks'], 1):
+        # Data
+        trainset = SplitCIFAR10(dset='train', valid=data_config['valid'], transform=train_transform,
+                                 classes=task)
+        validset = SplitCIFAR10(dset='valid', valid=data_config['valid'], transform=test_transform,
+                                 classes=task)
+
+        trainloader = MultiLoader([trainset] + memories, batch_size=data_config['batch_size'])
+        validloaders.append(DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
+                                       pin_memory=True, num_workers=data_config['num_workers']))
+        for t in task:
+            memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
+                                     classes=[t]),
+                                    run_config['buffer_size'], transform=train_transform))
+
+        print(len(trainloader))
+        for epoch in tqdm(range(1, run_config['epochs'] + 1)):
+            # scheduler.step()
+
+            train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)
+            for i, vl in enumerate(validloaders, 1):
+                test(task_id, i, epoch, net, criterion, vl, run_config)

@@ -14,7 +14,7 @@ model_config = OrderedDict([
 ])
 
 optim_config = OrderedDict([
-    ('base_lr', 0.01),
+    ('base_lr', 0.001),
     ('weight_decay', 0.0005),
     ('momentum', 0.9),
     ('nesterov', True),
@@ -23,7 +23,7 @@ optim_config = OrderedDict([
 ])
 
 data_config = OrderedDict([
-    ('dataset', 'CIFAR100'),
+    ('dataset', 'CIFAR10'),
     ('batch_size', 128),
     ('valid', 0.2),
     ('num_workers', 4),
@@ -32,8 +32,8 @@ k = 2
 t = 5
 run_config = OrderedDict([
     ('experiment', 'split'),
-    ('wandb_name', 'no_pretrain'),
-    ('checkpoint', None),
+    ('wandb_name', 'new_pt-lower_lr'),
+    ('checkpoint', 'model_state.ptc'),
     ('epochs', 80),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 100),
@@ -50,7 +50,6 @@ config = OrderedDict([
 ])
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     experiment = importlib.import_module(config['run_config']['experiment'])
     experiment.run(config)
