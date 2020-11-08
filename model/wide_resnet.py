@@ -130,10 +130,7 @@ class Model(nn.Module):
             self.feature_size = self._forward_conv(
                 torch.zeros(*input_shape)).view(-1).shape[0]
 
-        self.fc1 = nn.Linear(self.feature_size, 2000)
-        self.fc2 = nn.Linear(2000, 2000)
-        self.fc3 = nn.Linear(2000, 2000)
-        self.fc4 = nn.Linear(2000, n_classes)
+        self.fc = nn.Linear(self.feature_size, n_classes)
 
         # initialize weights
         self.apply(initialize_weights)
@@ -178,10 +175,7 @@ class Model(nn.Module):
             x = self._forward_conv(x)
 
         x = x.view(x.size(0), -1)
-        x = F.relu(self.fc1(x))
-        # x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
+        x = self.fc(x)
         return x
 
     def freeze(self):

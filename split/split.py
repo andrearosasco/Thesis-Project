@@ -179,22 +179,25 @@ def run(config):
     # Training
     memories = []
     validloaders = []
+    trainsets = []
     for task_id, task in enumerate(run_config['tasks'], 1):
         # Data
-        trainset = SplitCIFAR10(dset='train', valid=data_config['valid'], transform=train_transform,
+        validset = SplitCIFAR100(dset='valid', valid=data_config['valid'], transform=test_transform,
                                  classes=task)
-        validset = SplitCIFAR10(dset='valid', valid=data_config['valid'], transform=test_transform,
-                                 classes=task)
-
-        trainloader = MultiLoader([trainset] + memories, batch_size=data_config['batch_size'])
         validloaders.append(DataLoader(validset, batch_size=data_config['batch_size'], shuffle=False,
                                        pin_memory=True, num_workers=data_config['num_workers']))
+
         for t in task:
-            memories.append(Buffer(SplitCIFAR10(dset='train', valid=data_config['valid'],
+            trainsets.append(SplitCIFAR100(dset='train', valid=data_config['valid'], transform=train_transform,
+                                 classes=[t]))
+
+        trainloader = MultiLoader(trainsets + memories, batch_size=data_config['batch_size'])
+
+        for t in task:
+            memories.append(Buffer(SplitCIFAR100(dset='train', valid=data_config['valid'],
                                      classes=[t]),
                                     run_config['buffer_size'], transform=train_transform))
 
-        print(len(trainloader))
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             # scheduler.step()
 

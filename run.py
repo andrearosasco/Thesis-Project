@@ -2,10 +2,10 @@ import os
 import subprocess
 
 
-configs = [f'split_config{x}.py' for x in range(1, 3)]
+configs = ['./split/cifar100_1.py']
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
     for c in configs:
         print(f'Executing {c}')
         proc = subprocess.Popen(['python', c])

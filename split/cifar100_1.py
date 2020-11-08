@@ -14,7 +14,7 @@ model_config = OrderedDict([
 ])
 
 optim_config = OrderedDict([
-    ('base_lr', 0.001),
+    ('base_lr', 0.1),
     ('weight_decay', 0.0005),
     ('momentum', 0.9),
     ('nesterov', True),
@@ -23,20 +23,20 @@ optim_config = OrderedDict([
 ])
 
 data_config = OrderedDict([
-    ('dataset', 'CIFAR10'),
-    ('batch_size', 128),
+    ('dataset', 'CIFAR100'),
+    ('batch_size', 256),
     ('valid', 0.2),
     ('num_workers', 4),
 ])
-k = 2
-t = 5
+k = 10
+t = 10
 run_config = OrderedDict([
-    ('experiment', 'split_no_aug'),
-    ('wandb_name', 'no_aug-buff_100'),
+    ('experiment', 'split'),
+    ('wandb_name', 'cifar100.augmented'),
     ('checkpoint', None),
     ('epochs', 80),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
-    ('buffer_size', 100),
+    ('buffer_size', 40),
     ('seed', 1234),
     ('wandb', True),
 ])
