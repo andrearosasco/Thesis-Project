@@ -24,7 +24,7 @@ optim_config = OrderedDict([
 
 data_config = OrderedDict([
     ('dataset', 'CIFAR100'),
-    ('batch_size', 128),
+    ('batch_size', 256), # in this setup it is needed or MultiLoader will fail (it does int(128 / 100) = 0)
     ('valid', 0.2),
     ('num_workers', 4),
 ])

@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-configs = ['./split/cifar100_1.py']
+configs = ['./lowerbound/cifar100.py']
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '1'

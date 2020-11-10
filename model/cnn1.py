@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super(Model, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, (3, 3), padding=1)
         self.conv1_bn = nn.BatchNorm2d(16)
@@ -22,7 +22,7 @@ class Model(nn.Module):
 
         self.fc1 = nn.Linear(256 * 2 * 2, 2000)
         self.fc2 = nn.Linear(2000, 2000)
-        self.fc3 = nn.Linear(2000, 10)
+        self.fc3 = nn.Linear(2000, config['n_classes'])
 
     def forward(self, x):
         # [3, 32, 32] -> [16, 32, 32]
