@@ -18,10 +18,10 @@ model_config = OrderedDict([
 ])
 
 optim_config = OrderedDict([
-    ('base_lr', 0.001),
-    ('weight_decay', 0.0005),
-    ('momentum', 0.9),
-    ('nesterov', True),
+    ('base_lr', 0.1),
+    ('weight_decay', 0.0),
+    ('momentum', 0.0),
+    ('nesterov', False),
     ('milestones', []),
     ('lr_decay', 0.0),
 ])
@@ -34,24 +34,28 @@ data_config = OrderedDict([
     ('train_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
             lambda x: torch.FloatTensor(x),
+            lambda x: x / 255.0,
+            transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
         ])),
     ('test_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
             lambda x: torch.FloatTensor(x),
+            lambda x: x / 255.0,
+            transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
         ]))
 ])
 
 k = 2
-t = 5
+t = 1
 run_config = OrderedDict([
     ('experiment', 'main'),
-    ('wandb_name', 'mnist.buffer1'),
+    ('wandb_name', 'mnist.mod.buffer1'),
     ('checkpoint', None),
     ('epochs', 3),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 1),
     ('seed', 1234),
-    ('wandb', True),
+    ('wandb', False),
 ])
 
 

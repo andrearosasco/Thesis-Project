@@ -1,3 +1,4 @@
+import copy
 import os
 import time
 import random
@@ -37,21 +38,23 @@ class AverageMeter(object):
 
 def train(task_id, epoch, model, optimizer, criterion, train_loader, run_config):
     model.train()
+    torch.set_printoptions(precision=10)
 
     loss_meter = AverageMeter()
     accuracy_meter = AverageMeter()
     start = time.time()
 
+    # init_param = copy.deepcopy(model.state_dict())
     for step, (data, targets) in enumerate(train_loader):
+        # if step == 10: break
 
         data = data.cuda()
         targets = targets.cuda()
-
         optimizer.zero_grad()
 
-        with autocast():
-            outputs = model(data)
-            loss = criterion(outputs, targets)
+        # with autocast():
+        outputs = model(data)
+        loss = criterion(outputs, targets)
         loss.backward()
 
         optimizer.step()
@@ -67,7 +70,11 @@ def train(task_id, epoch, model, optimizer, criterion, train_loader, run_config)
         loss_meter.update(loss_, num)
         accuracy_meter.update(accuracy, num)
 
-    elapsed = time.time() - start
+    # with torch.no_grad():
+    #     torch.set_printoptions(precision=10)
+    #     final_param = model.state_dict()
+    #     for k, v in final_param.items():
+    #         print(f'{k}: {(init_param[k] - v).float().abs().mean([x for x in range(len(v.shape))])}')
 
     if run_config['wandb']:
         wandb.log({f'Train loss {task_id}': loss_meter.avg,
@@ -166,18 +173,17 @@ def run(config):
                                        pin_memory=True, num_workers=data_config['num_workers']))
         trainsets = []
         for t in task:
-            trainsets.append(Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
-                                 classes=[t]))
+            ds = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
+                    classes=[t])
+            trainsets.append(ds)
+            memories.append(Buffer(ds, run_config['buffer_size']))
 
-        trainloader = MultiLoader(trainsets + memories, batch_size=data_config['batch_size'])
-
-        for t in task:
-            memories.append(Buffer(Dataset(dset='train', valid=data_config['valid'], classes=[t]),
-                                    run_config['buffer_size'], transform=data_config['train_transform']))
+        trainloader = MultiLoader(memories, batch_size=data_config['batch_size'])
 
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
             # scheduler.step()
 
             train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)
             for i, vl in enumerate(validloaders, 1):
-                test(task_id, i, epoch, net, criterion, vl, run_config)
+                accuracy = test(task_id, i, epoch, net, criterion, vl, run_config)
+            print(accuracy)

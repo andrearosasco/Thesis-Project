@@ -2,6 +2,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def initialize_weights(module):
+    if isinstance(module, nn.Conv2d):
+        nn.init.kaiming_normal_(module.weight.data, mode='fan_in')
+    elif isinstance(module, nn.BatchNorm2d):
+        module.weight.data.uniform_()
+        module.bias.data.zero_()
+    elif isinstance(module, nn.Linear):
+        module.bias.data.zero_()
+
 class Model(nn.Module):
     def __init__(self, config):
         super(Model, self).__init__()
@@ -23,6 +32,8 @@ class Model(nn.Module):
         self.fc1 = nn.Linear(256 * 2 * 2, 2000)
         self.fc2 = nn.Linear(2000, 2000)
         self.fc3 = nn.Linear(2000, config['n_classes'])
+
+        self.apply(initialize_weights)
 
     def forward(self, x):
         # [3, 32, 32] -> [16, 32, 32]
