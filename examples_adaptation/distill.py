@@ -43,7 +43,6 @@ def print_mnist(imgs, trgs):
     for img, trg in zip(imgs, trgs):
         print(trg)
 
-
         img = img * 0.3081 + 0.1307  # unnormalize
         img = img * 255
         npimg = img.cpu().squeeze().detach().numpy()
@@ -117,8 +116,6 @@ def test(task_id, i, epoch, model, criterion, test_loader, run_config):
         correct_meter.update(correct_, 1)
 
     accuracy = correct_meter.sum / len(test_loader.dataset)
-    print(correct_meter.sum)
-    print(len(test_loader.dataset))
 
     elapsed = time.time() - start
 
@@ -146,7 +143,7 @@ def run(config):
         wandb.init(project="meta-cl", name=run_config['wandb_name'])
         wandb.config.update(config)
     # Reproducibility
-    seed = 1243#config['run_config']['seed']
+    seed = 1234#config['run_config']['seed']
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -186,7 +183,7 @@ def run(config):
             buffer = Buffer(aux, run_config['buffer_size']) if buffer is None else buffer + Buffer(aux, run_config['buffer_size'])
 
         # for img_lr in [0.001, 0.003, 0.01, 0.03, 0.1, 0.3]:
-        # buffer, lr = distill(net, init_config, buffer, 0.1, criterion, trainloader)
+        buffer, lr = distill(net, init_config, buffer, 0.1, criterion, trainloader)
         memories.append(buffer)
 
         bufferloader = MultiLoader(memories, batch_size=data_config['batch_size'])
@@ -195,11 +192,11 @@ def run(config):
         optimizer = torch.optim.SGD(net.parameters(), lr=0.1)
         net.load_state_dict(init_config)
 
-        for epoch in range(60):
+        for epoch in range(run_config['epochs']):
             train(task_id, epoch, net, optimizer, criterion, bufferloader, run_config)
             for i, vl in enumerate(validloaders, 1):
                 accuracy = test(task_id, i, epoch, net, criterion, vl, run_config)
-            print(f'epoch {epoch} -> accuracy {accuracy}')
+                print(f'epoch {epoch} -> accuracy {accuracy}')
 
 
 def distill(model, init_config, buffer, img_lr, criterion, train_loader):
@@ -215,27 +212,32 @@ def distill(model, init_config, buffer, img_lr, criterion, train_loader):
 
     torch.set_printoptions(precision=10)
     # init_param = copy.deepcopy(init_config)
+    for i in range(1):
+        for step, (ds_imgs, ds_trgs) in enumerate(train_loader):
+            model.load_state_dict(copy.deepcopy(init_config))
+            model_opt = torch.optim.SGD(model.parameters(), lr=model_lr)
 
-    for step, (ds_imgs, ds_trgs) in enumerate(train_loader):
-        model.load_state_dict(init_config)
-        model_opt = torch.optim.SGD(model.parameters(), lr=model_lr)
+            ds_imgs = ds_imgs.cuda()
+            ds_trgs = ds_trgs.cuda()
 
-        ds_imgs = ds_imgs.cuda()
-        ds_trgs = ds_trgs.cuda()
+            # First step modifies the model
+            with autograd.detect_anomaly():
+                model_opt.zero_grad()
+                buff_opt.zero_grad()
 
-        # First step modifies the model
-        with autograd.detect_anomaly():
-            buff_opt.zero_grad()
-            buff_out = model(buff_imgs)
-            buff_loss = criterion(buff_out, buff_trgs)
-            buff_loss.backward()
-            model_opt.step()
-            model_opt.zero_grad()
-            # Second step modifies the buffer
-            ds_out = model(ds_imgs)
-            ds_loss = criterion(ds_out, ds_trgs)
-            ds_loss.backward()
-            buff_opt.step()
+                buff_out = model(buff_imgs)
+                buff_loss = criterion(buff_out, buff_trgs)
+                buff_loss.backward()
+                model_opt.step()
+                # Second step modifies the buffer
+                ds_out = model(ds_imgs)
+                ds_loss = criterion(ds_out, ds_trgs)
+                ds_loss.backward()
+                # Test gradient
+                with torch.no_grad():
+                    if buff_imgs.grad.sum().item() != 0:
+                        print('There is gradient')
+                buff_opt.step()
 
     # print(buff_imgs.grad)
     print_mnist(buff_imgs, buff_trgs)

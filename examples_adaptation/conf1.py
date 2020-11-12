@@ -45,13 +45,13 @@ data_config = OrderedDict([
         ]))
 ])
 
-k = 2
+k = 10
 t = 1
 run_config = OrderedDict([
-    ('experiment', 'main'),
+    ('experiment', 'distill'),
     ('wandb_name', 'mnist.mod.buffer1'),
     ('checkpoint', None),
-    ('epochs', 3),
+    ('epochs', 60),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 1),
     ('seed', 1234),

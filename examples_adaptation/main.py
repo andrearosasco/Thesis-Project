@@ -2,6 +2,7 @@ import copy
 import os
 import time
 import random
+import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 import torch
@@ -34,6 +35,20 @@ class AverageMeter(object):
         self.sum += val * num
         self.count += num
         self.avg = self.sum / self.count
+
+w = 0
+def print_mnist(imgs, trgs):
+    global w
+    for img, trg in zip(imgs, trgs):
+        print(trg)
+
+        img = img * 0.3081 + 0.1307  # unnormalize
+        img = img * 255
+        npimg = img.cpu().squeeze().detach().numpy()
+        npimg = npimg.astype(np.uint8)
+
+        plt.imsave(f'./img{w}.png', npimg)
+        w += 1
 
 
 def train(task_id, epoch, model, optimizer, criterion, train_loader, run_config):
@@ -173,15 +188,21 @@ def run(config):
                                        pin_memory=True, num_workers=data_config['num_workers']))
         trainsets = []
         for t in task:
-            ds = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
-                    classes=[t])
-            trainsets.append(ds)
+            trainsets.append(Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'],
+                    classes=[t]))
+
+
+
+        for ds in trainsets:
             memories.append(Buffer(ds, run_config['buffer_size']))
 
         trainloader = MultiLoader(memories, batch_size=data_config['batch_size'])
 
+        for step, (x, y) in enumerate(validloaders[0]):
+            if step == 12: break
+        print_mnist(x, y)
+
         for epoch in tqdm(range(1, run_config['epochs'] + 1)):
-            # scheduler.step()
 
             train(task_id, epoch, net, optimizer, criterion, trainloader, run_config)
             for i, vl in enumerate(validloaders, 1):
