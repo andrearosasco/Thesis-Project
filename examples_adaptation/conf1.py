@@ -17,15 +17,6 @@ model_config = OrderedDict([
     ('n_classes', 10),
 ])
 
-optim_config = OrderedDict([
-    ('base_lr', 0.1),
-    ('weight_decay', 0.0),
-    ('momentum', 0.0),
-    ('nesterov', False),
-    ('milestones', []),
-    ('lr_decay', 0.0),
-])
-
 data_config = OrderedDict([
     ('dataset', 'SplitMNIST'),
     ('batch_size', 128),
@@ -49,19 +40,25 @@ k = 10
 t = 1
 run_config = OrderedDict([
     ('experiment', 'distill'),
-    ('wandb_name', 'mnist.mod.buffer1'),
+    ('wandb_name', 'mnist.ext30.int80'),
     ('checkpoint', None),
-    ('epochs', 60),
+    ('epochs', 100),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 1),
     ('seed', 1234),
-    ('wandb', False),
+    ('wandb', True),
 ])
 
+distill_config = OrderedDict([
+    ('meta_lr', 0.1),
+    ('model_lr', 0.2),
+    ('outer_steps', 30),
+    ('inner_steps', 80),
+])
 
 config = OrderedDict([
     ('model_config', model_config),
-    ('optim_config', optim_config),
+    ('distill_config', distill_config),
     ('data_config', data_config),
     ('run_config', run_config),
 ])
