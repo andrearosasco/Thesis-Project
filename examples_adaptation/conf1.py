@@ -8,7 +8,7 @@ import numpy as np
 from torchvision.transforms import transforms
 
 model_config = OrderedDict([
-    ('arch', 'cnn1'),
+    ('arch', 'lenet5'),
     # ('depth', 28),
     # ('base_channels', 16),
     # ('widening_factor', 10),
@@ -24,12 +24,14 @@ data_config = OrderedDict([
     ('num_workers', 4),
     ('train_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
+            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'),
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
             transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
         ])),
     ('test_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
+            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'),
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
             transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
@@ -40,9 +42,10 @@ k = 10
 t = 1
 run_config = OrderedDict([
     ('experiment', 'distill'),
-    ('wandb_name', 'mnist.ext30.int80'),
+    ('wandb_name', 'mnist.ext3.int10.lenet'),
     ('checkpoint', None),
-    ('epochs', 100),
+    ('epochs', 60),
+    ('device', 'cuda'),
     ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
     ('buffer_size', 1),
     ('seed', 1234),
@@ -51,9 +54,10 @@ run_config = OrderedDict([
 
 distill_config = OrderedDict([
     ('meta_lr', 0.1),
-    ('model_lr', 0.2),
-    ('outer_steps', 30),
-    ('inner_steps', 80),
+    ('model_lr', 0.1),
+    ('lr_lr', 0.01),
+    ('outer_steps', 3),
+    ('inner_steps', 10),
 ])
 
 config = OrderedDict([
