@@ -3,28 +3,27 @@ import os
 from collections import OrderedDict
 
 import torch
-from PIL import Image
 import numpy as np
 from torchvision.transforms import transforms
 
 model_config = OrderedDict([
     ('arch', 'lenet5'),
+    ('n_classes', 10),
+    # Next entries are required for using the Wide-ResNet
     # ('depth', 28),
     # ('base_channels', 16),
     # ('widening_factor', 10),
     # ('drop_rate', 0.0),
-    # ('input_shape', (1, 28, 28)),
-    ('n_classes', 10),
+    ('input_shape', (1, 28, 28)),
 ])
 
 data_config = OrderedDict([
     ('dataset', 'SplitMNIST'),
-    ('batch_size', 128),
     ('valid', 0.2),
     ('num_workers', 4),
     ('train_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
-            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'),
+            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'), # Padding is only required by LeNet
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
             transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
@@ -38,33 +37,38 @@ data_config = OrderedDict([
         ]))
 ])
 
-k = 10
-t = 1
 run_config = OrderedDict([
-    ('experiment', 'distill'),
-    ('wandb_name', 'mnist.ext3.int10.lenet'),
-    ('checkpoint', None),
-    ('epochs', 60),
+    ('experiment', 'distill_fixed'),
     ('device', 'cuda'),
-    ('tasks', [list(range(k*x, k*(x + 1))) for x in range(t)]),
-    ('buffer_size', 1),
+    ('task', [0, 9, 2, 8]),
+    ('save', None),  # Path for the distilled dataset
     ('seed', 1234),
-    ('wandb', True),
 ])
 
-distill_config = OrderedDict([
-    ('meta_lr', 0.1),
-    ('model_lr', 0.1),
-    ('lr_lr', 0.01),
-    ('outer_steps', 3),
-    ('inner_steps', 10),
+log_config = OrderedDict([
+    ('wandb', False),
+    ('wandb_name', 'distill.class1.buff1'),
+    ('print', True),
+    ('images', True), # Save the distilled images
+])
+
+param_config = OrderedDict([
+    ('epochs', 3),  # Training epoch performed by the model on the distilled dataset
+    ('meta_lr', 0.1),  # Learning rate for distilling images
+    ('model_lr', 0.1),  # Base learning rate for the model
+    ('lr_lr', 0.0),  # Learning rate for the lrs of the model at each optimization step
+    ('outer_steps', 32),  # Distillation epochs
+    ('inner_steps', 3),  # Optimization steps of the model
+    ('batch_size', 128),  # Minibatch size used during distillation
+    ('buffer_size', 1),  # Number of examples per class kept in the buffer
 ])
 
 config = OrderedDict([
     ('model_config', model_config),
-    ('distill_config', distill_config),
+    ('param_config', param_config),
     ('data_config', data_config),
     ('run_config', run_config),
+    ('log_config', log_config),
 ])
 
 if __name__ == '__main__':
