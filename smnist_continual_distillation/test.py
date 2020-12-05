@@ -74,8 +74,9 @@ class Train:
         targets = targets.to(run_config['device'])
         self.optimizer.zero_grad()
 
-        outputs = model(data)
-        loss = self.criterion(outputs, targets)
+        with autocast():
+            outputs = model(data)
+            loss = self.criterion(outputs, targets)
         loss.backward()
 
         self.optimizer.step()
@@ -241,12 +242,14 @@ def distill(model, buffer, config, criterion, train_loader, id):
                 with higher.innerloop_ctx(model, model_opt) as (fmodel, diffopt):
                     for j in range(param_config['inner_steps']):
                         # Update the model
+                        # with autocast():
                         buff_out = fmodel(buff_imgs)
                         buff_loss = criterion(buff_out, buff_trgs)
                         buff_loss = buff_loss * torch.log(1 + torch.exp(lr_list[j]))
                         diffopt.step(buff_loss)
 
                         # Update the buffer (actually we just record the loss and update it outside the inner loop)
+                        # with autocast():
                         ds_out = fmodel(ds_imgs)
                         ds_loss = criterion(ds_out, ds_trgs)
 

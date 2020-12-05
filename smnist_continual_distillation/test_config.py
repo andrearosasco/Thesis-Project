@@ -23,14 +23,14 @@ data_config = OrderedDict([
     ('num_workers', 4),
     ('train_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
-            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'), # Padding is only required by LeNet
+            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='minimum'), # Padding is only required by LeNet
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
             transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
         ])),
     ('test_transform', transforms.Compose([
             lambda x: np.array(x).reshape((1, 28, 28)),
-            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='reflect'),
+            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='minimum'),
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
             transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
@@ -39,27 +39,27 @@ data_config = OrderedDict([
 
 
 run_config = OrderedDict([
-    ('experiment', 'distill'),  # This configuration will be executed by distill.py
+    ('experiment', 'test'),  # This configuration will be executed by distill.py
     ('device', 'cuda'),
-    ('task', [2, 3]),
+    ('tasks', [[0, 1], [2, 3]]), # , [4, 5], [6, 7], [8, 9]
     ('save', 'task1.distilled'),  # Path for the distilled dataset
     ('seed', 1234),
 ])
 
 log_config = OrderedDict([
     ('wandb', True),
-    ('wandb_name', 'distill.class1.buff1'),
+    ('wandb_name', 'outer50.inner50.amp1'),
     ('print', True),
-    ('images', True), # Save the distilled images
+    ('images', True),  # Save the distilled images
 ])
 
 param_config = OrderedDict([
-    ('epochs', 3),  # Training epoch performed by the model on the distilled dataset
+    ('epochs', 80),  # Training epoch performed by the model on the distilled dataset
     ('meta_lr', 0.1),  # Learning rate for distilling images
-    ('model_lr', 0.01),  # Base learning rate for the model
+    ('model_lr', 0.05),  # Base learning rate for the model
     ('lr_lr', 0.0),  # Learning rate for the lrs of the model at each optimization step
-    ('outer_steps', 16),  # Distillation epochs
-    ('inner_steps', 3),  # Optimization steps of the model
+    ('outer_steps', 50),  # Distillation epochs
+    ('inner_steps', 50),  # Optimization steps of the model
     ('batch_size', 128),  # Minibatch size used during distillation
     ('buffer_size', 1),  # Number of examples per class kept in the buffer
 ])
