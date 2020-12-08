@@ -7,48 +7,44 @@ import numpy as np
 from torchvision.transforms import transforms
 
 model_config = OrderedDict([
-    ('arch', 'lenet5'),
+    ('arch', 'mlp1'),
     ('n_classes', 10),
     # Next entries are required for using the Wide-ResNet
     # ('depth', 28),
     # ('base_channels', 16),
     # ('widening_factor', 10),
     # ('drop_rate', 0.0),
-    ('input_shape', (1, 28, 28)),
+    # ('input_shape', (1, 28, 28)),
 ])
 
 data_config = OrderedDict([
-    ('dataset', 'SplitMNIST'),
+    ('dataset', 'PermutedMNIST'),
     ('valid', 0.2),
     ('num_workers', 4),
     ('train_transform', transforms.Compose([
-            lambda x: np.array(x).reshape((1, 28, 28)),
-            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='minimum'), # Padding is only required by LeNet
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
-            transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
+            lambda x: (x - 0.1307) / 0.3081,
         ])),
     ('test_transform', transforms.Compose([
-            lambda x: np.array(x).reshape((1, 28, 28)),
-            lambda x: np.pad(x, ((0, 0), (2, 2), (2, 2)), mode='minimum'),
             lambda x: torch.FloatTensor(x),
             lambda x: x / 255.0,
-            transforms.Normalize(np.array([0.1307]), np.array([0.3081]))
+            lambda x: (x - 0.1307) / 0.3081,
         ]))
 ])
 
 
 run_config = OrderedDict([
-    ('experiment', 'test'),  # This configuration will be executed by distill.py
+    ('experiment', 'pmnist_train'),  # This configuration will be executed by distill.py
     ('device', 'cuda'),
-    ('tasks', [[0, 1], [2, 3]]), # , [4, 5], [6, 7], [8, 9]
+    ('tasks', [0, 1, 2, 3, 4]), # , [4, 5], [6, 7], [8, 9]
     ('save', 'task1.distilled'),  # Path for the distilled dataset
     ('seed', 1234),
 ])
 
 log_config = OrderedDict([
     ('wandb', True),
-    ('wandb_name', 'outer50.inner50.amp1'),
+    ('wandb_name', 'test'),
     ('print', True),
     ('images', True),  # Save the distilled images
 ])
@@ -58,10 +54,10 @@ param_config = OrderedDict([
     ('meta_lr', 0.1),  # Learning rate for distilling images
     ('model_lr', 0.05),  # Base learning rate for the model
     ('lr_lr', 0.0),  # Learning rate for the lrs of the model at each optimization step
-    ('outer_steps', 8),  # Distillation epochs
+    ('outer_steps', 0),  # Distillation epochs
     ('inner_steps', 3),  # Optimization steps of the model
     ('batch_size', 128),  # Minibatch size used during distillation
-    ('buffer_size', 1),  # Number of examples per class kept in the buffer
+    ('buffer_size', 10),  # Number of examples per class kept in the buffer
 ])
 
 config = OrderedDict([

@@ -18,17 +18,22 @@ from torch import autograd
 from torch.utils.data import DataLoader
 import model
 
-w = 0
-def print_images(imgs, trgs, mean, std):
-    global w
+
+def print_images(imgs, trgs, mean, std, name, perm=None):
+    imgs = copy.deepcopy(imgs)
+
     for img, trg in zip(imgs, trgs):
         label = trg.item()
         print(label)
 
-        std = [std[0] for _ in range(img.size(0))] if len(std) == 1 else std
-        mean = [mean[0] for _ in range(img.size(0))] if len(mean) == 1 else mean
-
         img = img.cpu().detach().numpy()
+
+        if perm is not None: img = perm.unpermute(img)
+
+        img = img.reshape((1, 28, 28))
+
+        std = [std[0] for _ in range(img.shape[0])] if len(std) == 1 else std
+        mean = [mean[0] for _ in range(img.shape[0])] if len(mean) == 1 else mean
 
         for i in range(img.shape[0]):
             img[i] = img[i] * std[i] + mean[i]
@@ -38,10 +43,9 @@ def print_images(imgs, trgs, mean, std):
         img = np.squeeze(img)
         img = img.astype(np.uint8)
 
-        wandb.log({f'img{w}_{label}':[wandb.Image(img, caption=f"{label}")]})
+        wandb.log({f'{name}_{label}':[wandb.Image(img, caption=f"{label}")]})
 
         # plt.imsave(f'./img{w}_{label}.png', img)
-        w += 1
 
 def initialize_weights(module):
     if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
@@ -71,13 +75,15 @@ class Train:
             self.iter = enumerate(self.train_loader)
             step, (data, targets) = next(self.iter)
 
+        # for step, (data, targets) in enumerate(self.train_loader):
+
         data = data.to(run_config['device'])
         targets = targets.to(run_config['device'])
         self.optimizer.zero_grad()
 
-        with autocast():
-            outputs = model(data)
-            loss = self.criterion(outputs, targets)
+        #with autocast():
+        outputs = model(data)
+        loss = self.criterion(outputs, targets)
         loss.backward()
 
         self.optimizer.step()
@@ -104,7 +110,7 @@ def test(model, criterion, test_loader, config):
         data = data.to(config['device'])
         targets = targets.to(config['device'])
 
-        with torch.no_grad() and autocast():
+        with torch.no_grad(): #and autocast():
             outputs = model(data)
             loss = criterion(outputs, targets)
 
@@ -129,7 +135,7 @@ def run(config):
     log_config = config['log_config']
 
     if log_config['wandb']:
-        wandb.init(project="cont-distill-mnist", name=log_config['wandb_name'])
+        wandb.init(project="cont-distill-pmnist", name=log_config['wandb_name'])
         wandb.config.update(config)
 
     # Reproducibility
@@ -156,10 +162,59 @@ def run(config):
 
     for task_id, task in enumerate(run_config['tasks'], 0):
 
-        validset = Dataset(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'], classes=task)
-        validloaders.append(DataLoader(validset, batch_size=param_config['batch_size'], shuffle=False, pin_memory=True, num_workers=data_config['num_workers']))
-        trainset = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'], classes=task)
-        trainloader = DataLoader(trainset, batch_size=param_config['batch_size'], shuffle=True, pin_memory=True, num_workers=data_config['num_workers'])
+        if task_id == -1:
+            validset = getattr(datasets, 'SplitMNIST')(dset='valid', valid=data_config['valid'],
+                                                       transform=data_config['test_transform'], classes=list(range(10)))
+            validloaders.append(
+                DataLoader(validset, batch_size=param_config['batch_size'], shuffle=False, pin_memory=True,
+                           num_workers=data_config['num_workers']))
+            trainset = getattr(datasets, 'SplitMNIST')(dset='train', valid=data_config['valid'],
+                                                       transform=data_config['test_transform'], classes=list(range(10)))
+            # print('Task 0 (not permuted)')
+            # print(f'Training set lenght: {len(trainset)}')
+            # for i in range(model_config['n_classes']):
+            #       print(f'    {i} -> {len(list(filter(lambda x: x[1] == i, trainset)))}')
+            # print('Sample saved: train-0')
+            # mean, std = [0.1307], [0.3081]
+            # x, y = next(iter(MultiLoader([trainset], batch_size=1)))
+            # print_images(x, y, mean, std, f'train-0')
+            #
+            # print('Task 0 (not permuted)')
+            # print(f'Valid set lenght: {len(validset)}')
+            # for i in range(model_config['n_classes']):
+            #     print(f'    {i} -> {len(list(filter(lambda x: x[1] == i, validset)))}')
+            # print('Sample saved: valid-0')
+            # mean, std = [0.1307], [0.3081]
+            # x, y = next(iter(MultiLoader([validset], batch_size=1)))
+            # print_images(x, y, mean, std, f'valid-0')
+
+        else:
+            validset = Dataset(dset='valid', valid=data_config['valid'], transform=data_config['test_transform'], task=task)
+            validloaders.append(DataLoader(validset, batch_size=param_config['batch_size'], shuffle=False, pin_memory=True, num_workers=data_config['num_workers']))
+            trainset = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'], task=task)
+            #
+            # print(f'Task {task_id} (permuted)')
+            # print(f'Training set lenght: {len(trainset)}')
+            # for i in range(model_config['n_classes']):
+            #     print(f'    {i} -> {len(list(filter(lambda x: x[1] == i, trainset)))}')
+            # print(f'Permutation: {trainset.p.perm}')
+            # print(f'Sample saved: train-{task_id}')
+            # mean, std = [0.1307], [0.3081]
+            # x, y = next(iter(MultiLoader([trainset], batch_size=1)))
+            # print_images(x, y, mean, std, f'train_perm-{task_id}')
+            # print_images(x, y, mean, std, f'train_unperm-{task_id}', trainset.p)
+            #
+            # print(f'Task {task_id} (permuted)')
+            # print(f'Valid set lenght: {len(validset)}')
+            # for i in range(model_config['n_classes']):
+            #     print(f'    {i} -> {len(list(filter(lambda x: x[1] == i, validset)))}')
+            # print(f'Permutation: {validset.p.perm}')
+            # print(f'Sample saved: valid-{task_id}')
+            # mean, std = [0.1307], [0.3081]
+            # x, y = next(iter(MultiLoader([validset], batch_size=1)))
+            # print_images(x, y, mean, std, f'valid_perm-{task_id}')
+            # print_images(x, y, mean, std, f'valid_unperm-{task_id}', trainset.p)
+
 
         # Possible problem: task 2, batch 128 -> 64 example from task 2 & 64 from the buffer (it only contains two so they are repeated)
         bufferloader = MultiLoader([trainset] + memories, batch_size=param_config['batch_size'])
@@ -174,6 +229,7 @@ def run(config):
 
             valid_m = {}
             for i, vl in enumerate(validloaders):
+
                 test_loss, test_accuracy = test(net, criterion, vl, run_config)
                 valid_m = {**valid_m, **{f'Test loss {i}': test_loss,
                            f'Test accuracy {i}': test_accuracy,}}
@@ -186,19 +242,28 @@ def run(config):
             if log_config['wandb']:
                 wandb.log({**valid_m, **train_m})
 
-        if task_id == len(run_config['tasks']) - 1:
-            break
+        # if task_id == len(run_config['tasks']) - 1:
+        #     break
 
         buffer = None
-        for t in task:
-            ds = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'], classes=[t])
-            buffer = Buffer(ds, param_config['buffer_size']) if buffer is None else buffer + Buffer(ds, param_config['buffer_size'])
+        for c in range(model_config['n_classes']):
+            if task_id == -1:
+                ds = list(filter(lambda x: x[1] == c, getattr(datasets, 'SplitMNIST')(dset='train', valid=data_config['valid'],
+                                                           transform=data_config['test_transform'], classes=list(range(10)))))
+                buffer = Buffer(ds, param_config['buffer_size']) if buffer is None else buffer + Buffer(ds, param_config['buffer_size'])
+            else:
+                ds = list(filter(lambda x: x[1] == c,
+                                 Dataset(dset='train', valid=data_config['valid'],
+                                         transform=data_config['train_transform'], task=task)))
+                buffer = Buffer(ds, param_config['buffer_size']) if buffer is None else buffer + Buffer(ds,
+                                                                                                        param_config[
+                                                                                                            'buffer_size'])
 
-        buffer, lrs = distill(net, buffer, config, criterion, trainloader, task_id)
+        # buffer, lrs = distill(net, buffer, config, criterion, trainloader, task_id)
 
-        mean, std = data_config['test_transform'].transforms[-1].mean, data_config['test_transform'].transforms[-1].std
-        for x, y in MultiLoader([buffer], batch_size=len(buffer)):
-            print_images(x, y, mean, std)
+        # mean, std = [0.1307], [0.3081]
+        # for x, y in MultiLoader([buffer], batch_size=len(buffer)):
+        #     print_images(x, y, mean, std)
 
         memories.append(buffer)
 

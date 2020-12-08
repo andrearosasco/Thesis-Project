@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="rosasco@131.114.137.168:22" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="p100" autoUploadExternalChanges="true">
     <serverData>
-      <paths name="rosasco@131.114.137.168:22">
+      <paths name="p100">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/rosasco/thesis" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/rosasco/thesis" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="v100">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/rosasco/thesis" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

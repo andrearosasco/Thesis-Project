@@ -26,11 +26,12 @@ def print_images(imgs, trgs, mean, std):
         std = [std[0] for _ in range(img.size(0))] if len(std) == 1 else std
         mean = [mean[0] for _ in range(img.size(0))] if len(mean) == 1 else mean
 
-        for i in range(img.size(0)):
+        img = img.cpu().detach().numpy()
+
+        for i in range(img.shape[0]):
             img[i] = img[i] * std[i] + mean[i]
 
         img = img * 255
-        img = img.cpu().detach().numpy()
         img = np.transpose(img, (1, 2, 0))
         img = np.squeeze(img)
         img = img.astype(np.uint8)

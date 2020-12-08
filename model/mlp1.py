@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super(Model, self).__init__()
         self.drop = nn.Dropout(0.5)
 
