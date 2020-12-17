@@ -135,7 +135,7 @@ def run(config):
     log_config = config['log_config']
 
     if log_config['wandb']:
-        wandb.init(project="distill-pmnist-restart", name=log_config['wandb_name'])
+        wandb.init(project="distill_mlp", name=log_config['wandb_name'])
         wandb.config.update(config)
 
     # Reproducibility
@@ -166,27 +166,33 @@ def run(config):
         trainset = Dataset(dset='train', valid=data_config['valid'], transform=data_config['train_transform'], task=task)
         trainloader = DataLoader(trainset, batch_size=param_config['batch_size'], shuffle=True, pin_memory=True, num_workers=data_config['num_workers'])
 
-        # Possible problem: task 2, batch 128 -> 64 example from task 2 & 64 from the buffer (it only contains two so they are repeated)
-        bufferloader = MultiLoader([trainset] + memories, batch_size=param_config['batch_size'])
-
         optimizer = torch.optim.SGD(net.parameters(), lr=param_config['model_lr'], )
+
+        buffer = None
+        for c in range(model_config['n_classes']):
+            ds = list(filter(lambda x: x[1] == c,
+                             Dataset(dset='train', valid=data_config['valid'],
+                                     transform=data_config['train_transform'], task=task)))
+            buffer = Buffer(ds, param_config['buffer_size']) if buffer is None else buffer + Buffer(ds,
+                                                                                                    param_config[
+                                                                                                        'buffer_size'])
+        buffer, lrs = distill(net, buffer, config, criterion, trainloader, task_id)
+        bufferloader = MultiLoader([buffer], len(buffer))
+
         train = Train(optimizer, criterion, bufferloader, config)
 
         steps = len(bufferloader) * param_config['epochs']
-
         for step in range(steps):
 
             buffer_loss, buffer_accuracy = train(net)
 
             if step % int(round(steps * 0.05)) == int(round(steps * 0.05)) - 1 or step == 0:
-                valid_m = {'Test accuracy avg': 0}
+                valid_m = {}
                 for i, vl in enumerate(validloaders):
 
                     test_loss, test_accuracy = test(net, criterion, vl, run_config)
                     valid_m = {**valid_m, **{f'Test loss {i}': test_loss,
                                f'Test accuracy {i}': test_accuracy,}}
-                    valid_m['Test accuracy avg'] += (test_accuracy / len(validloaders))
-
 
                 train_m = {f'Buffer loss': buffer_loss,
                            f'Buffer accuracy': buffer_accuracy,
@@ -196,27 +202,10 @@ def run(config):
                 if log_config['wandb']:
                     wandb.log({**valid_m, **train_m})
 
-        if task_id == len(run_config['tasks']) - 1:
-            break
-
-        if param_config['buffer_size'] != 0:
-            buffer = None
-            for c in range(model_config['n_classes']):
-                ds = list(filter(lambda x: x[1] == c,
-                                 Dataset(dset='train', valid=data_config['valid'],
-                                         transform=data_config['train_transform'], task=task)))
-                buffer = Buffer(ds, param_config['buffer_size']) if buffer is None else buffer + Buffer(ds,
-                                                                                                        param_config[
-                                                                                                            'buffer_size'])
-            net.drop = nn.Dropout(0.0)
-            buffer, lrs = distill(net, buffer, config, criterion, trainloader, task_id)
-            net.drop = nn.Dropout(model_config['dropout'])
 
             # mean, std = [0.1307], [0.3081]
             # for x, y in MultiLoader([buffer], batch_size=len(buffer)):
             #     print_images(x, y, mean, std)
-
-            memories.append(buffer)
 
 def distill(model, buffer, config, criterion, train_loader, id):
     model = copy.deepcopy(model) # to avoid all the re-initializations don't affect the real model

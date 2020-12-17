@@ -47,7 +47,7 @@ run_config = OrderedDict([
 ])
 
 log_config = OrderedDict([
-    ('wandb', True),
+    ('wandb', False),
     ('wandb_name', 'outer50.inner50.amp1'),
     ('print', True),
     ('images', True),  # Save the distilled images
@@ -73,6 +73,6 @@ config = OrderedDict([
 ])
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
     experiment = importlib.import_module(config['run_config']['experiment'])
     experiment.run(config)

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self, config):
         super(Model, self).__init__()
-        self.drop = nn.Dropout(0.5)
+        self.drop = nn.Dropout(config['dropout'])
 
         self.fc1 = nn.Linear(784, 2000)
         self.fc2 = nn.Linear(2000, 2000)

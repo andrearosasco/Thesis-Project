@@ -1,9 +1,6 @@
 import copy
 import random
-import sys
-from collections import OrderedDict
-import matplotlib.pyplot as plt
-import dill
+import time
 
 import torch
 import higher
@@ -167,6 +164,7 @@ def run(config):
         optimizer = torch.optim.SGD(net.parameters(), lr=param_config['model_lr'], )
         train = Train(optimizer, criterion, bufferloader, config)
 
+        start = time.time()
         for epoch in range(param_config['epochs']):
             # lr = lrs[epoch] if epoch < len(lrs) else lrs[-1]
 
@@ -185,6 +183,8 @@ def run(config):
                 print({**valid_m, **train_m})
             if log_config['wandb']:
                 wandb.log({**valid_m, **train_m})
+        print(time.time()-start)
+        exit(0)
 
         if task_id == len(run_config['tasks']) - 1:
             break
