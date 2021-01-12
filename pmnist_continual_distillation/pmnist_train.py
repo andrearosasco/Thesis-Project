@@ -158,6 +158,7 @@ def run(config):
     # Training
     memories = []
     validloaders = []
+    prev_steps = 0  # I know it's ugly but since the number of steps changes from task to task this is needed to plot the x-axis correclty
 
     for task_id, task in enumerate(run_config['tasks'], 0):
 
@@ -190,11 +191,13 @@ def run(config):
 
                 train_m = {f'Buffer loss': buffer_loss,
                            f'Buffer accuracy': buffer_accuracy,
-                           f'Step': step + steps * task_id}
+                           f'Step': step + prev_steps * task_id}
                 if log_config['print']:
                     print({**valid_m, **train_m})
                 if log_config['wandb']:
                     wandb.log({**valid_m, **train_m})
+
+        prev_steps = steps
 
         if task_id == len(run_config['tasks']) - 1:
             break
